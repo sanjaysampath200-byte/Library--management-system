@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Library Management System</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;padding:20px;color:#222}
+.container{max-width:1000px;margin:auto;background:#fff;padding:25px;border-radius:12px;box-shadow:0 4px 15px #0001}
+h1{text-align:center;color:#2563eb;margin-top:0}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.card{background:#eef4ff;padding:15px;border-radius:8px;text-align:center}
+.card h3{margin:5px 0;color:#555}
+.card p{font-size:22px;font-weight:bold;color:#2563eb;margin:8px 0}
+.form{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+input{padding:11px;border:1px solid #ccc;border-radius:6px;width:100%}
+button{padding:10px 14px;border:0;border-radius:6px;background:#2563eb;color:white;cursor:pointer}
+button:hover{opacity:.9}
+.add{grid-column:1/-1}
+.search{margin:20px 0 10px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{border:1px solid #ddd;padding:10px;text-align:center}
+th{background:#2563eb;color:white}
+.issue{background:#f59e0b}
+.return{background:#16a34a}
+.delete{background:#dc2626}
+.empty{text-align:center;padding:20px;color:#777}
+.status-available{color:#16a34a;font-weight:bold}
+.status-issued{color:#dc2626;font-weight:bold}
+@media(max-width:650px){
+.summary{grid-template-columns:1fr}
+.form{grid-template-columns:1fr}
+table{font-size:12px}
+th,td{padding:7px}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>Library Management System</h1>
+
+<div class="summary">
+<div class="card">
+<h3>Total Books</h3>
+<p id="totalBooks">0</p>
+</div>
+<div class="card">
+<h3>Available Books</h3>
+<p id="availableBooks">0</p>
+</div>
+<div class="card">
+<h3>Issued Books</h3>
+<p id="issuedBooks">0</p>
+</div>
+</div>
+
+<div class="form">
+<input id="bookId" placeholder="Book ID">
+<input id="title" placeholder="Book Title">
+<input id="author" placeholder="Author Name">
+<input id="category" placeholder="Category">
+<button class="add" onclick="addBook()">Add Book</button>
+</div>
+
+<input class="search" id="search" placeholder="Search by book ID, title or author..." oninput="displayBooks()">
+
+<table>
+<thead>
+<tr>
+<th>Book ID</th>
+<th>Title</th>
+<th>Author</th>
+<th>Category</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="bookTable"></tbody>
+</table>
+</div>
+
+<script>
+let books=JSON.parse(localStorage.getItem("libraryBooks"))||[];
+
+function saveData(){
+    localStorage.setItem("libraryBooks",JSON.stringify(books));
+}
+
+function addBook(){
+    const bookId=document.getElementById("bookId").value.trim();
+    const title=document.getElementById("title").value.trim();
+    const author=document.getElementById("author").value.trim();
+    const category=document.getElementById("category").value.trim();
+
+    if(!bookId||!title||!author||!category){
+        alert("Please fill all fields.");
+        return;
+    }
+
+    if(books.some(b=>b.bookId===bookId)){
+        alert("Book ID already exists.");
+        return;
+    }
+
+    books.push({
+        bookId,
+        title,
+        author,
+        category,
+        status:"Available"
+    });
+
+    saveData();
+    clearForm();
+    displayBooks();
+    alert("Book added successfully!");
+}
+
+function issueBook(index){
+    if(books[index].status==="Issued"){
+        alert("This book is already issued.");
+        return;
+    }
+
+    books[index].status="Issued";
+    saveData();
+    displayBooks();
+    alert("Book issued successfully!");
+}
+
+function returnBook(index){
+    if(books[index].status==="Available"){
+        alert("This book is already available.");
+        return;
+    }
+
+    books[index].status="Available";
+    saveData();
+    displayBooks();
+    alert("Book returned successfully!");
+}
+
+function deleteBook(index){
+    if(confirm("Are you sure you want to delete this book?")){
+        books.splice(index,1);
+        saveData();
+        displayBooks();
+    }
+}
+
+function displayBooks(){
+    const table=document.getElementById("bookTable");
+    const search=document.getElementById("search").value.toLowerCase();
+
+    const filtered=books.map((b,i)=>({b,i})).filter(x=>
+        x.b.bookId.toLowerCase().includes(search)||
+        x.b.title.toLowerCase().includes(search)||
+        x.b.author.toLowerCase().includes(search)
+    );
+
+    if(filtered.length===0){
+        table.innerHTML='<tr><td colspan="6" class="empty">No books found</td></tr>';
+    }else{
+        table.innerHTML=filtered.map(x=>`
+        <tr>
+            <td>${escapeHtml(x.b.bookId)}</td>
+            <td>${escapeHtml(x.b.title)}</td>
+            <td>${escapeHtml(x.b.author)}</td>
+            <td>${escapeHtml(x.b.category)}</td>
+            <td class="${x.b.status==="Available"?"status-available":"status-issued"}">
+                ${x.b.status}
+            </td>
+            <td>
+                <button class="issue" onclick="issueBook(${x.i})">Issue</button>
+                <button class="return" onclick="returnBook(${x.i})">Return</button>
+                <button class="delete" onclick="deleteBook(${x.i})">Delete</button>
+            </td>
+        </tr>
+        `).join("");
+    }
+
+    const available=books.filter(b=>b.status==="Available").length;
+    const issued=books.filter(b=>b.status==="Issued").length;
+
+    document.getElementById("totalBooks").textContent=books.length;
+    document.getElementById("availableBooks").textContent=available;
+    document.getElementById("issuedBooks").textContent=issued;
+}
+
+function clearForm(){
+    document.getElementById("bookId").value="";
+    document.getElementById("title").value="";
+    document.getElementById("author").value="";
+    document.getElementById("category").value="";
+}
+
+function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g,m=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",
+        '"':"&quot;","'":"&#039;"
+    }[m]));
+}
+
+displayBooks();
+</script>
+
+</body>
+</html>
